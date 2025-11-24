@@ -49,7 +49,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             if ($update_stmt->execute()) {
                                 $mail = new PHPMailer(true);
                                 try {
-                                    // Configuración SMTP (TU INFORMACIÓN)
                                     $mail->isSMTP();
                                     $mail->Host = 'smtp.gmail.com'; 
                                     $mail->SMTPAuth = true;
@@ -94,7 +93,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         }
                     }
                 } else {
-                    // Por seguridad, no decimos si el correo existe o no
                     $message = "Si tu dirección de correo electrónico está registrada con nosotros, recibirás un enlace para restablecer tu contraseña en breve. Por favor, revisa tu bandeja de entrada y la carpeta de spam.";
                 }
             } else {
