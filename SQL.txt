@@ -1,0 +1,21 @@
+--TABLA ALUMNOSSS
+CREATE TABLE tbAlumnos(
+intalumno INT PRIMARY KEY AUTO_INCREMENT,
+matricula VARCHAR(20) UNIQUE NOT NULL,
+nombre VARCHAR(100) NOT NULL,
+apellido_p VARCHAR(100) NOT NULL,
+apellido_m VARCHAR(100), --OPCIONAL 
+correoinst VARCHAR(100) UNIQUE, --CORREOS UNICOS
+correoper VARCHAR (100) UNIQUE,
+
+--fk_grupo INT, para relacionarla con grupos
+fk_grupo INT,
+--Campo activo o inactivo cawn
+activo BOOLEAN NOT NULL DEFAULT TRUE, --TRUE si está, cursando, FALSE si no
+
+--Restricción de llavee se comenta en lo que se crea la tabla grupos
+--FOREIGN KEY (fk_grupo) REFERENCES tblGrupos(id_grupo));
+
+
+
+
