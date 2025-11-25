@@ -1,8 +1,26 @@
-runtime: php83 
-service: default 
+runtime: php83
+service: default
+
+runtime_config:
+  document_root: . 
+
+env_variables:
+  # **LÍNEA CORREGIDA PARA EL ENTORNO ESTÁNDAR**
+  GCLOUD_PHP_CONFIG: /workspace/apache_php.conf
+  
+  # Añade aquí tus variables de base de datos
+  CLOUD_SQL_CONNECTION_NAME: "protectu-479303:us-central1:haceru4-mysql" 
+  DB_USER: "root"
+  DB_PASS: "molotov" 
+  DB_NAME: "protect" 
 
 handlers:
+# 1. Definir index.php como el script de inicio (Front Controller)
+- url: /
+  script: auto
+  secure: always
 
+# 2. Rutas estáticas (CSS, JS, assets)
 - url: /assets
   static_dir: assets
   secure: always
@@ -15,12 +33,12 @@ handlers:
   static_dir: js
   secure: always
 
-
-- url: /(.*\.(gif|png|jpg|ico|html|php))$
+# 3. Regla para todos los demás scripts PHP (login, register, etc.)
+- url: /(.*\.(php|html))$
   script: auto
   secure: always
 
-
+# Regla para cualquier otra ruta dinámica
 - url: /.*
   script: auto
   secure: always
