@@ -1,12 +1,11 @@
-
+# env_variables.yaml
 runtime_config:
   document_root: .
 
 env_variables:
+  # BASE DE DATOS
+  DB_DSN: "mysql:unix_socket=/cloudsql/protectu-479383:us-central1:haceru4-mysql;dbname=protect" 
   
-  CLOUDSQL_SOCKET_PATH: "protectu-479383:us-central1:haceru4-mysql" 
-  
-  # CREDENCIALES DE LA BASE DE DATOS
+  # CREDENCIALES
   DB_USER: "root"
-  DB_PASS: "molotov" 
-  DB_NAME: "protect" 
+  DB_PASS: "molotov"
