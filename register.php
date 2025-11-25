@@ -12,7 +12,7 @@ require 'phpmailer/SMTP.php';
 
 
 $nombre = $correo = $usuario = $pwd = "";
-$nombre_err = $correo_err = $usuario_err = $pwd_err = $register_err = ""; 
+$nombre_err = $correo_err = $usuario_err = $pwd_err = $register_err = $captcha_err = "";
 $register_success_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -70,25 +70,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $pwd_err = "La contraseña debe tener al menos 3 caracteres.";
     }
 
+    if (empty($_POST['g-recaptcha-response'])) {
+        $captcha_err = "Captcha no detectado.";
+    } else {
+        $captcha_response = $_POST['g-recaptcha-response'];
+        $secret_key = "6LeQ-morAAAAAEMu2oSPX4OUhxkcKEgVqGQGOxvL"; 
+        $verify = file_get_contents("https://www.google.com/recaptcha/api/siteverify?secret={$secret_key}&response={$captcha_response}");
+        $captcha_success = json_decode($verify);
 
-    if (empty($nombre_err) && empty($correo_err) && empty($usuario_err) && empty($pwd_err) && empty($register_err)) {
-        $sql = "INSERT INTO usuarios (nombre, correo, usuario, pwd) VALUES (?, ?, ?, ?)";
-        
+        if (!$captcha_success->success || $captcha_success->score < 0.5) {
+            $captcha_err = "Verificación de captcha fallida. Por favor, intenta de nuevo.";
+        }
+    }
+
+    if (empty($nombre_err) && empty($correo_err) && empty($usuario_err) && empty($pwd_err) && empty($captcha_err) && empty($register_err)) {
+        $token_activacion = bin2hex(random_bytes(32));
+
+        $sql = "INSERT INTO usuarios (nombre, correo, usuario, pwd, activo, token_activacion) VALUES (?, ?, ?, ?, 0, ?)";
         if ($stmt = $conn->prepare($sql)) {
-            $stmt->bind_param("ssss", $nombre, $correo, $usuario, $pwd);
+            $stmt->bind_param("sssss", $nombre, $correo, $usuario, $pwd, $token_activacion);
             
             if ($stmt->execute()) {
-                
-                $_SESSION['registration_success'] = "¡Registro exitoso! Ya puedes iniciar sesión.";
-                header("location: login.php");
-                exit;
-                
+                $mail = new PHPMailer(true);
+                try {
+                    $mail->isSMTP();
+                    $mail->Host = 'smtp.gmail.com'; 
+                    $mail->SMTPAuth = true;
+                    $mail->Username = 'baenaspoti@gmail.com';
+                    $mail->Password = 'qlnm qgtj ifwa nbqi'; 
+                    $mail->SMTPSecure = 'tls';
+                    $mail->Port = 587;
+                    $mail->CharSet = 'UTF-8';
+
+                    $mail->setFrom('baenaspoti@gmail.com', 'Protect-U');
+                    $mail->addAddress($correo);
+
+                    $mail->isHTML(true);
+                    $mail->Subject = 'Activa tu cuenta en Portect-U';
+                    
+                    $activation_link = "http://localhost:8080/SH1/activate_account.php?token=" . $token_activacion; 
+
+                    $mail->Body = "
+                        <h3>¡Bienvenido a Protect-U, {$nombre}!</h3>
+                        <p>Gracias por registrarte. Para activar tu cuenta y cotizar con nosotros, por favor haz clic en el siguiente enlace:</p>
+                        <p><a href='{$activation_link}'>Activar mi Cuenta</a></p>
+                        <p>Si no te registraste en nuestro sitio, puedes ignorar este correo.</p>
+                        <br>
+                        <strong>Atentamente,<br>El equipo de Protect-U</strong>
+                    ";
+
+                    $mail->send();
+                    $register_success_message = "¡Registro exitoso! Se ha enviado un enlace de activación a tu correo electrónico ({$correo}). Por favor, revisa tu bandeja de entrada y activa tu cuenta!";
+                } catch (Exception $e) {
+                    $register_err = "Error al enviar el correo de activación. Tu cuenta ha sido creada, pero necesitas activarla. Por favor, contacta a soporte o intenta registrarte de nuevo si el problema persiste. Error: " . $e->getMessage();
+                }
             } else {
                 $register_err = "Error al registrar el usuario en la base de datos. Intenta de nuevo.";
             }
             $stmt->close();
         } else {
-            $register_err = "Error al preparar la consulta de inserción. Intenta de nuevo. Detalle: " . $conn->error;
+            $register_err = "Error al preparar la consulta de inserción. Intenta de nuevo.";
         }
     }
     $conn->close();
@@ -182,8 +223,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-size: 1em;
             font-weight: bold;
         }
-        /* 4. ELIMINADO: Todo el CSS para el overlay #captcha-overlay */
+
+        #captcha-overlay {
+            display: none; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.65);
+            z-index: 9999;
+            justify-content: center; 
+            align-items: center;    
+            backdrop-filter: blur(4px);
+        }
+
+        #captcha-overlay div {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 20px 30px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            animation: fadeIn 0.4s ease-in-out;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LeQ-morAAAAACu5_QUwv5RFb7qRfXtuq-RKGB-X"></script>
 
     <script>
         window.addEventListener('mouseover', initLandbot, { once: true });
@@ -205,6 +278,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
     </script>
+
 </head>
 <body>
     <div class="login-container">
@@ -212,6 +286,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php 
         if (!empty($register_err)) {
             echo '<div class="error-message">' . $register_err . '</div>';
+        }
+        if (!empty($captcha_err)) {
+            echo '<div class="error-message">' . $captcha_err . '</div>';
         }
         if (!empty($register_success_message)) {
             echo '<div class="success-message">' . $register_success_message . '</div>';
@@ -234,13 +311,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <input type="password" name="pwd" required>
             <?php if (!empty($pwd_err)) echo '<div class="error-message">' . $pwd_err . '</div>'; ?>
 
+            <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+
             <button type="submit">Registrarme</button>
-            <p style="margin-top: 10px;">¿Ya tienes una cuenta?  
-                <button type="button" onclick="location.href='login.php'" class="button-secondary">
+            <p style="margin-top: 10px;">¿Ya tienes una cuenta?  
+                  <button type="button" onclick="location.href='login.php'" class="button-secondary">
                 Inicia sesión aqui! 
             </button></p>
-        </form>
     </div>
 
-    </body>
+    <div id="captcha-overlay">
+        <div>🧠 Verificando que no eres un robot...</div>
+    </div>
+
+    <script>
+        function onRecaptchaLoad() {
+            console.log("reCAPTCHA script loaded and ready.");
+            document.getElementById("captcha-overlay").style.display = "flex"
+            grecaptcha.execute('6LeQ-morAAAAACu5_QUwv5RFb7qRfXtuq-RKGB-X', {action: 'register'})
+                .then(function(token) {
+                    console.log("reCAPTCHA token obtained:", token);
+                    document.getElementById('g-recaptcha-response').value = token;
+                    document.getElementById("captcha-overlay").style.display = "none"; 
+                })
+                .catch(function(error) {
+                    console.error("Error obtaining reCAPTCHA token:", error);
+                    document.getElementById("captcha-overlay").style.display = "none"; 
+                    alert("No se pudo completar la verificación de seguridad. Por favor, intenta de nuevo.");
+                });
+        }
+
+       
+        grecaptcha.ready(function() {
+            document.getElementById("captcha-overlay").style.display = "flex";
+            grecaptcha.execute('6LeQ-morAAAAACu5_QUwv5RFb7qRfXtuq-RKGB-X', {action: 'register'}).then(function(token) {
+                document.getElementById('g-recaptcha-response').value = token;
+                document.getElementById("captcha-overlay").style.display = "none";
+            }).catch(function(error) {
+                console.error("Error en reCAPTCHA.ready:", error);
+                document.getElementById("captcha-overlay").style.display = "none";
+                alert("Hubo un problema con la verificación de seguridad. Por favor, recarga la página e intenta de nuevo.");
+            });
+        });
+        
+       </script>
+       
+    </script>
+</body>
 </html>

@@ -37,8 +37,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $captcha_err = "Verificación de captcha fallida.";
         }
     }
+
     if (empty($username_err) && empty($password_err) && empty($captcha_err)) {
-        $sql = "SELECT usuario, pwd FROM usuarios WHERE usuario = ?"; 
+        $sql = "SELECT usuario, pwd, activo FROM usuarios WHERE usuario = ?"; 
 
         if ($stmt = $conn->prepare($sql)) {
             $stmt->bind_param("s", $param_username);
@@ -48,9 +49,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->store_result();
 
                 if ($stmt->num_rows == 1) {
-                    $stmt->bind_result($db_usuario, $db_password_plain); 
+                    $stmt->bind_result($db_usuario, $db_password_plain, $db_activo); 
                     if ($stmt->fetch()) {
-                        if ($password === $db_password_plain) { 
+                        if ($db_activo == 0) {
+                            $login_err = "Tu cuenta aún no ha sido activada. Por favor, activa tu cuenta para poder iniciar sesión.";
+                        } 
+                        elseif ($password === $db_password_plain) { 
                             $_SESSION["loggedin"] = true;
                             $_SESSION["username"] = $db_usuario;
 
@@ -254,4 +258,3 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </script>
 </body>
 </html>
-```
